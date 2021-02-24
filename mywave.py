@@ -24,7 +24,7 @@ def fd(taper_start=None, taper_end=None, **kwds):
         hc = fd_taper(hc, fhigh - taper_end, fhigh, side='right')
 
     return hp, hc
-        
+
 window = signal.get_window(('kaiser', 8.0), 1e5)
 window_left = window[:len(window)//2]
 window_right = window[len(window)//2:]
@@ -42,24 +42,24 @@ def fd_sequence(taper_start=None, taper_end=None, **kwds):
         kwds.pop("approximant")
     hp, hc = get_fd_waveform_sequence(approximant="TaylorF2", **kwds)
 
-    sam = kwds['sample_points']
+    sam = kwds['sample_points'].numpy()
     flow = sam[0]
     fhigh = sam[-1]
-    
+
     if taper_start:
         l, r = numpy.searchsorted(sam, [flow, flow + taper_start])
         fval = sam[l:r]
         x = (fval - flow) / taper_start
         w = winl(x)
-        hp[l:r] *= w
-        hc[l:r] *= w
+        hp._data[l:r] *= w
+        hc._data[l:r] *= w
 
     if taper_end:
         l, r = numpy.searchsorted(sam, [fhigh - taper_end, fhigh])
         fval = sam[l:r]
         x = (fval - fhigh + taper_end) / taper_end
         w = winr(x)
-        hp[l:r] *= w
-        hc[l:r] *= w
+        hp._data[l:r] *= w
+        hc._data[l:r] *= w
 
     return hp, hc
