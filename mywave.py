@@ -1,11 +1,9 @@
 """ Reverse chirping waveform model using IMRPhenomD as a a base
 """
+from scipy import signal
+from scipy.interpolate import interp1d
+import numpy
 
-# Notes on style:
-#
-# For example purposes only of how to advertise a waveform model to PyCBC
-# Function should take kwargs only, and must accept abitrary kwargs.
-# 'newparam' is an example of adding a new argument.
 def fd(taper_start=None, taper_end=None, **kwds):
     from pycbc.waveform import get_fd_waveform
     from pycbc.waveform.utils import fd_taper
@@ -26,12 +24,42 @@ def fd(taper_start=None, taper_end=None, **kwds):
         hc = fd_taper(hc, fhigh - taper_end, fhigh, side='right')
 
     return hp, hc
+        
+window = signal.get_window(('kaiser', 8.0), 1e5)
+window_left = window[:len(window)//2]
+window_right = window[len(window)//2:]
 
-def fd_sequence(**kwds):
+xl = numpy.arange(0, len(window_left)) / float(len(window_left))
+winl = interp1d(xl, window_left)
+
+xr = numpy.arange(0, len(window_right)) / float(len(window_right))
+winr = interp1d(xr, window_right)
+
+def fd_sequence(taper_start=None, taper_end=None, **kwds):
     from pycbc.waveform import get_fd_waveform_sequence
 
     if 'approximant' in kwds:
         kwds.pop("approximant")
     hp, hc = get_fd_waveform_sequence(approximant="TaylorF2", **kwds)
+
+    sam = kwds['sample_points']
+    flow = sam[0]
+    fhigh = sam[-1]
+    
+    if taper_start:
+        l, r = numpy.searchsorted(sam, [flow, flow + taper_start])
+        fval = sam[l:r]
+        x = (fval - flow) / taper_start
+        w = winl(x)
+        hp[l:r] *= w
+        hc[l:r] *= w
+
+    if taper_end:
+        l, r = numpy.searchsorted(sam, [fhigh - taper_end, fhigh])
+        fval = sam[l:r]
+        x = (fval - fhigh + taper_end) / taper_end
+        w = winr(x)
+        hp[l:r] *= w
+        hc[l:r] *= w
 
     return hp, hc
